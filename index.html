@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>VERTIS Viabilidade</title>
+<meta name="robots" content="noindex, nofollow">
+<style>
+  html, body { margin: 0; height: 100%; background: #000000; }
+  iframe { display: block; border: 0; width: 100%; height: 100%; }
+  .aviso { color: #f9f9f9; font: 15px/1.5 system-ui, sans-serif; max-width: 520px; margin: 80px auto; padding: 0 16px; }
+</style>
+</head>
+<body>
+<script>
+  /* Cole aqui o "URL do app da Web" do Apps Script (termina em /exec) */
+  var APP_URL = "";
+
+  if (APP_URL) {
+    var f = document.createElement("iframe");
+    f.src = APP_URL;
+    f.title = "VERTIS Viabilidade";
+    f.allow = "clipboard-write";
+    document.body.appendChild(f);
+  } else {
+    document.body.innerHTML = '<p class="aviso">Plataforma ainda não configurada. Edite este arquivo no GitHub e cole o link do app da Web do Apps Script em APP_URL.</p>';
+  }
+</script>
+</body>
+</html>
