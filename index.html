@@ -1,0 +1,1029 @@
+<title>VERTIS Viabilidade</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Urbanist:wght@300;400;500;600;700&display=swap">
+<style>
+/* Layout: barra de marca VERTIS + régua em gradiente; abaixo, coluna de dados do terreno e área de resultados (KPIs, corte, capacidade, uso do solo, lei × projeto).
+   Identidade única escura, como na papelaria VERTIS: preto, branco e a régua violeta "metro a metro". */
+:root{
+  /* Paleta oficial VERTIS: Digital Topography #3E14EF · Due Navy Blue #000E49 · Timeless Black #000000 · Concrete #646464 · Clearness #F9F9F9 */
+  --violeta:#3e14ef; --navy:#000e49; --preto:#000000; --concreto:#646464; --claro:#f9f9f9;
+  --bg:var(--preto); --surface:#0b0b0e; --raised:#101014; --sunk:#17171c; --ink:var(--claro);
+  --muted:#9a9a9a; /* Concrete clareado para legibilidade de texto sobre preto */
+  --line:#232327; --accent:var(--violeta); --accent-deep:var(--navy); --lav:#b4a8ff; --accent-soft:#140a4a;
+  --ok:#78d6a6; --warn:#f0c36a; --bad:#ff6f6f; --pave:var(--concreto); --don:#7d66ff;
+  --ochre:var(--lav); --ochre-soft:var(--accent-soft);
+  --f-display:"Urbanist",system-ui,sans-serif;
+  --f-body:"Urbanist",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"Urbanist",system-ui,sans-serif;
+  --regua:linear-gradient(90deg,var(--navy) 0%,var(--violeta) 48%,#7d66ff 76%,#d9d3ff 100%);
+  color-scheme:dark;
+}
+html,body{background:var(--bg);color:var(--ink)}
+body{font-family:var(--f-body);font-size:14.5px;line-height:1.5;font-weight:400}
+.disp{font-family:var(--f-display);font-weight:500;text-transform:uppercase;letter-spacing:.06em}
+.big{font-family:var(--f-body);font-weight:300;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-weight:500}
+.eyebrow{font-family:var(--f-display);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:400}
+.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px;max-width:1480px;margin:0 auto}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.inp{background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:5px 9px;color:var(--ink);font-family:var(--f-body);font-variant-numeric:tabular-nums;font-size:13px;min-width:0}
+.inp.n{width:92px;text-align:right}
+select.inp{width:100%}
+.inp:hover{border-color:#3a3a44}
+.inp:focus-visible,button:focus-visible,input[type=checkbox]:focus-visible,input[type=range]:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input[type=range]{accent-color:var(--accent);width:100%}
+input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px}
+table{border-collapse:collapse;width:100%}
+th,td{padding:10px 14px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-weight:400}
+h1,h2{text-wrap:balance}
+details>summary{cursor:pointer;list-style:none}
+details>summary::-webkit-details-marker{display:none}
+details[open] .chev{transform:rotate(90deg)}
+.chev{transition:transform .15s}
+button{transition:border-color .15s,color .15s,background .15s}
+button:hover{border-color:var(--accent)!important;color:var(--ink)!important}
+/* Régua: faixa em gradiente com marcações de metro, assinatura da marca */
+.regua{position:relative;height:14px;background:var(--regua);border-radius:0 3px 3px 0}
+.regua::before{content:"";position:absolute;inset:0 0 auto 0;height:5px;
+  background:repeating-linear-gradient(90deg,var(--bg) 0 2px,transparent 2px 14px)}
+.regua.sm{height:10px}.regua.sm::before{height:4px;background:repeating-linear-gradient(90deg,var(--surface) 0 2px,transparent 2px 10px)}
+.track{background:var(--sunk);border-radius:3px;overflow:hidden}
+.tagline{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.tagline span:nth-child(2){margin-top:10px}.tagline span:nth-child(3){margin-top:20px}.tagline span:nth-child(4){margin-top:30px}.tagline span:nth-child(5){margin-top:40px}
+@media (max-width:640px){.tagline span{margin-top:0!important}}
+.hl{color:var(--lav)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+<div id="root"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useMemo } = React;
+
+/* Valores iniciais de exemplo (cenário da planilha). Todos os campos são editáveis. */
+const INICIAL = {
+  nome:"", cenario:"Cenário A", produto:"",
+  iaBas:1.5, iaMax:1.5, to:60, tp:30, gab:48, rF:5, rL:3, rFu:3,
+  terreo:494.56, tipo:464.24, toArea:636.02, pd:2.76, uhPav:12,
+  area:4700,
+  doacoes:[
+    {k:"zpa", label:"ZPA / APP", pct:0},
+    {k:"verde", label:"Área verde", pct:15},
+    {k:"inst", label:"Institucional", pct:5},
+    {k:"fundo", label:"Fundo de terra", pct:5},
+    {k:"viario", label:"Sistema viário", pct:0},
+    {k:"comercial", label:"Comercial / outras", pct:0},
+  ],
+  fracaoOn:false, fracao:30,
+  b1:1, p1:18, b2:0, p2:0,
+  extras:[
+    {nome:"Guarita", area:12.65, coberta:true},
+    {nome:"Apoio", area:33.05, coberta:true},
+    {nome:"Gás", area:9, coberta:true},
+    {nome:"Lixo", area:23, coberta:true},
+    {nome:"Casa de máquinas", area:12.2, coberta:true},
+    {nome:"Caixa d'água", area:32.16, coberta:true},
+    {nome:"Churrasqueira", area:31.53, coberta:true},
+    {nome:"Playground", area:42.5, coberta:false},
+    {nome:"Pet place", area:41.18, coberta:false},
+    {nome:"Funcional", area:49, coberta:false},
+    {nome:"Gazebo", area:25, coberta:false},
+  ],
+  vagasPadrao:31, vagasPcd:2, motos:29, bikes:10, areaVaga:12, areaMoto:2,
+  via:315.4, permLivre:1224.53, permVaga:7.3,
+  valorTerreno:0, valorUH:300000,
+};
+
+/* ---------- Ícones (traço lucide) ---------- */
+const ICONS = {
+  building:["M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z","M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2","M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2","M10 6h4","M10 10h4","M10 14h4","M10 18h4"],
+  layers:["m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z","m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65","m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"],
+  coins:["M18.09 10.37A6 6 0 1 1 10.34 18","M7 6h1v4","m16.71 13.88.7.71-2.82 2.82","M14 8A6 6 0 1 1 2 8a6 6 0 0 1 12 0Z"],
+  home:["M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8","M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"],
+  leaf:["M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z","M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"],
+  law:["M3 22h18","M6 18v-7","M10 18v-7","M14 18v-7","M18 18v-7","M12 2 20 7H4z"],
+  alert:["m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3","M12 9v4","M12 17h.01"],
+  check:["M20 6 9 17l-5-5"],
+  map:["M14.1 6 9.9 4 3 7v13l6.9-3 4.2 2 6.9-3V3z","M9.9 4v13","M14.1 6v13"],
+  reset:["M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8","M3 3v5h5"],
+  car:["M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2","M7 17h8","M9 17a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z","M19 17a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z"],
+  plus:["M5 12h14","M12 5v14"],
+  x:["M18 6 6 18","m6 6 12 12"],
+  chev:["m9 18 6-6-6-6"],
+  save:["M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z","M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7","M7 3v4a1 1 0 0 0 1 1h7"],
+  folder:["M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"],
+  columns:["M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z","M9 3v18","M15 3v18"],
+  history:["M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8","M3 3v5h5","M12 7v5l4 2"],
+  copy:["M10 8h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2Z","M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"],
+  logout:["M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4","m16 17 5-5-5-5","M21 12H9"],
+  filePlus:["M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z","M14 2v4a2 2 0 0 0 2 2h4","M9 15h6","M12 18v-6"],
+  search:["m21 21-4.34-4.34","M19 11a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z"],
+  cloud:["M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"],
+  user:["M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2","M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z"],
+  target:["M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z","M18 12a6 6 0 1 1-12 0 6 6 0 0 1 12 0Z","M14 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z"],
+};
+const Icon = ({name,size=18,className="",style}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} style={style} aria-hidden="true">
+    {ICONS[name].map((d,i)=><path key={i} d={d}/>)}
+  </svg>
+);
+
+/* ---------- Formatação ---------- */
+const ok = (v) => v!==null && v!==undefined && Number.isFinite(v);
+const fmt = (v,d=0) => ok(v) ? v.toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d}) : "—";
+const m2 = (v,d=0) => ok(v) ? fmt(v,d)+" m²" : "—";
+const pct = (v,d=1) => ok(v) ? fmt(v*100,d)+"%" : "—";
+const brl = (v) => {
+  if(!ok(v)) return "—";
+  if(Math.abs(v) >= 1e9) return "R$ "+fmt(v/1e9,2)+" bi";
+  if(Math.abs(v) >= 1e6) return "R$ "+fmt(v/1e6,1)+" mi";
+  return v.toLocaleString("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0});
+};
+const num = (s) => s==="" || s===null ? null : parseFloat(String(s).replace(",","."));
+
+/* ---------- Cálculos (mesma lógica das abas DADOS e DADOS DO TERRENO) ---------- */
+function calc(s){
+  const area = s.area||0;
+  const doacoes = s.doacoes.map(d=>({...d, exig:(d.pct||0)/100*area}));
+  const doadoExig = doacoes.reduce((a,d)=>a+d.exig,0);
+  const doadoReal = doadoExig;
+  const liquida = Math.max(area - doadoExig, 0);                       // ÁREA EMPREENDIMENTO / ÁREA LÍQUIDA
+
+  const B = (s.b1||0) + (s.b2||0);                                     // N° de blocos/torres
+  const P = (s.b1||0)*(s.p1||0) + (s.b2||0)*(s.p2||0);                 // N° de pavimentos global
+  const pavMaior = Math.max(s.b1>0?s.p1:0, s.b2>0?s.p2:0);
+  const tipOk = ok(s.terreo) && ok(s.tipo) && ok(s.toArea);
+
+  const uh = P*(s.uhPav||0);
+  const uhPcd = Math.ceil(uh*0.03);                                    // 3% PCD, arredondado para cima
+  const uhPadrao = uh - uhPcd;
+
+  const compTorre = tipOk ? s.terreo*B + s.tipo*(P-B) : null;          // IA térreo × blocos + IA tipo × demais pavtos
+  const constrTorre = tipOk ? s.toArea*P : null;                       // área TO × pavimentos
+  const extrasTO = s.extras.reduce((a,e)=>a+(e.coberta?(e.area||0):0),0);
+  const lazerDesc = s.extras.reduce((a,e)=>a+(!e.coberta?(e.area||0):0),0);
+  const constrTotal = tipOk ? constrTorre + extrasTO : null;
+  const toTotal = tipOk ? s.toArea*B + extrasTO : null;                // projeção das torres + itens cobertos
+
+  const ia = liquida ? compTorre/liquida : null;
+  const to = liquida ? toTotal/liquida : null;
+  const altura = ok(s.pd) ? pavMaior*s.pd : null;
+
+  const areaPav = (s.via||0) + (s.motos||0)*(s.areaMoto||0) + (s.vagasPadrao||0)*(s.areaVaga||0);
+  const perm = (s.permLivre||0) + (s.vagasPadrao||0)*(s.permVaga||0);
+  const tp = liquida ? perm/liquida : null;
+
+  const vagasMin = Math.ceil(uh/6);
+  const vagas = (s.vagasPadrao||0) + (s.vagasPcd||0);
+  const uhMaxFracao = s.fracaoOn && s.fracao>0 ? Math.floor(area/s.fracao) : null;
+
+  const vgv = uh*(s.valorUH||0);
+  const permuta = s.valorTerreno>0 && vgv>0 ? s.valorTerreno/vgv : null;
+  const terrenoM2 = s.valorTerreno>0 && area ? s.valorTerreno/area : null;
+
+  const iaBas = ok(s.iaBas) ? s.iaBas : s.iaMax;
+  const outorga = ok(compTorre) ? Math.max(compTorre - iaBas*liquida, 0) : null;
+
+  /* Capacidade máxima mantendo o nº de torres atual */
+  const pavGab = ok(s.pd) && s.pd>0 ? Math.floor(s.gab/s.pd) : null;
+  const pavIA = tipOk && s.tipo>0 && B>0 ? Math.max(B + Math.floor((s.iaMax*liquida - B*s.terreo)/s.tipo), 0) : null;
+  const torresTO = tipOk && s.toArea>0 ? Math.max(Math.floor((s.to/100*liquida - extrasTO)/s.toArea),0) : null;
+  const limites = [
+    pavIA!==null ? {k:"IA máximo", v:pavIA} : null,
+    pavGab!==null && B>0 ? {k:"Gabarito", v:pavGab*B} : null,
+  ].filter(Boolean);
+  const pavCap = limites.length ? Math.min(...limites.map(l=>l.v)) : null;
+  const limitante = limites.length ? limites.reduce((a,b)=>b.v<a.v?b:a).k : null;
+  let uhCap = pavCap!==null ? pavCap*(s.uhPav||0) : null;
+  let limitanteUH = limitante;
+  if(uhCap!==null && uhMaxFracao!==null && uhMaxFracao<uhCap){ uhCap = uhMaxFracao; limitanteUH = "Fração do lote"; }
+
+  return {area,doacoes,doadoReal,doadoExig,liquida,B,P,pavMaior,tipOk,uh,uhPcd,uhPadrao,compTorre,constrTorre,extrasTO,lazerDesc,
+    constrTotal,toTotal,ia,to,altura,areaPav,perm,tp,vagasMin,vagas,uhMaxFracao,vgv,permuta,terrenoM2,iaBas,outorga,
+    pavGab,pavIA,torresTO,pavCap,limitante,uhCap,limitanteUH};
+}
+
+/* ---------- Componentes de entrada ---------- */
+function NumIn({id,value,onChange,step=1,unit,w}){
+  return (
+    <span className="inline-flex items-center gap-1.5 shrink-0">
+      <input id={id} className="inp n" style={w?{width:w}:null} type="number" step={step} value={value??""}
+        onChange={e=>onChange(num(e.target.value))}/>
+      {unit && <span className="mono text-[11px] w-[34px] leading-tight" style={{color:"var(--muted)"}}>{unit}</span>}
+    </span>
+  );
+}
+function Row({id,label,hint,children}){
+  return (
+    <div className="flex flex-col gap-0.5">
+      <div className="flex items-center justify-between gap-3">
+        <label htmlFor={id} className="text-[13px] leading-tight min-w-0">{label}</label>
+        {children}
+      </div>
+      {hint && <span className="text-[11.5px]" style={{color:"var(--muted)"}}>{hint}</span>}
+    </div>
+  );
+}
+function Group({icon,title,open=true,children,aside}){
+  return (
+    <details open={open} className="pt-3.5" style={{borderTop:"1px solid var(--line)"}}>
+      <summary className="flex items-center justify-between gap-2 mb-3">
+        <span className="flex items-center gap-2 eyebrow"><Icon name={icon} size={14} style={{color:"var(--accent)"}}/>{title}</span>
+        <span className="flex items-center gap-2">{aside}<Icon name="chev" size={14} className="chev" style={{color:"var(--muted)"}}/></span>
+      </summary>
+      <div className="flex flex-col gap-3">{children}</div>
+    </details>
+  );
+}
+
+/* ---------- Resultados ---------- */
+function Kpi({icon,label,value,sub,tone}){
+  const c = tone==="bad"?"var(--bad)":tone==="ochre"?"var(--ochre)":"var(--accent)";
+  return (
+    <div className="panel p-4 flex flex-col gap-2 min-w-0">
+      <div className="flex items-center gap-2 eyebrow"><Icon name={icon} size={15} style={{color:c}}/>{label}</div>
+      <div className="big text-[32px] leading-none" style={{color:tone==="bad"?"var(--bad)":tone==="ochre"?"var(--lav)":"var(--ink)"}}>{value}</div>
+      <div className="text-[12.5px]" style={{color:"var(--muted)"}}>{sub}</div>
+    </div>
+  );
+}
+function Status({st}){
+  const map = {ok:["var(--ok)","check"], warn:["var(--warn)","alert"], bad:["var(--bad)","alert"], na:["var(--muted)","alert"]};
+  const [c,ic] = map[st.t];
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[12px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{color:c,border:`1px solid ${c}`}}>
+      <Icon name={ic} size={13}/>{st.l}
+    </span>
+  );
+}
+
+/* Corte: torres lado a lado com a linha do gabarito em metros */
+function Corte({r,s}){
+  const W=520,H=280,padT=22,padB=36,padL=46,padR=16;
+  const torres = [];
+  for(let i=0;i<Math.min(s.b1||0,10);i++) torres.push(s.p1||0);
+  for(let i=0;i<Math.min(s.b2||0,10);i++) torres.push(s.p2||0);
+  const pd = ok(s.pd) ? s.pd : 2.8;
+  const hMax = Math.max(s.gab||0, r.pavMaior*pd, 3);
+  const sy = (H-padT-padB)/hMax, base = H-padB;
+  const n = Math.max(torres.length,1);
+  const slot = (W-padL-padR)/n;
+  const bw = Math.min(slot*0.62, 70);
+  const gy = base - (s.gab||0)*sy;
+  const ticks = [0, Math.round(hMax/2), Math.round(hMax)];
+  const mostradas = (s.b1||0)+(s.b2||0) > torres.length;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img" aria-label="Corte esquemático das torres em relação ao gabarito">
+      <defs>
+        <linearGradient id="gTorre" x1="0" y1="1" x2="0" y2="0">
+          <stop offset="0" stopColor="#000e49"/><stop offset=".5" stopColor="#3e14ef"/><stop offset="1" stopColor="#d9d3ff"/>
+        </linearGradient>
+      </defs>
+      {ticks.map((t,i)=>(
+        <g key={i}>
+          <line x1={padL} x2={W-padR} y1={base-t*sy} y2={base-t*sy} stroke="var(--line)" strokeWidth="1"/>
+          <text x={padL-6} y={base-t*sy+3.5} textAnchor="end" fontSize="10" fontFamily="Urbanist, system-ui, sans-serif" fill="var(--muted)">{t} m</text>
+        </g>
+      ))}
+      {torres.map((pv,i)=>{
+        const h=pv*pd*sy, x=padL+slot*i+(slot-bw)/2, over = pv*pd > (s.gab||0)+1e-6;
+        const step = Math.max(1, Math.ceil(pv/24));
+        return (
+          <g key={i}>
+            <rect x={x} y={base-h} width={bw} height={h} fill={over?"var(--bad)":"url(#gTorre)"} rx="1.5"/>
+            {Array.from({length:Math.floor((pv-1)/step)},(_,j)=>(j+1)*step).map(f=>(
+              <line key={f} x1={x} x2={x+bw} y1={base-f*pd*sy} y2={base-f*pd*sy} stroke="var(--bg)" strokeOpacity="0.45"/>
+            ))}
+            <text x={x+bw/2} y={base-h-5} textAnchor="middle" fontSize="10" fontFamily="Urbanist, system-ui, sans-serif" fill="var(--muted)">{pv}p</text>
+          </g>
+        );
+      })}
+      <line x1={padL} x2={W-padR} y1={gy} y2={gy} stroke="var(--ochre)" strokeWidth="1.5" strokeDasharray="5 4"/>
+      <text x={W-padR-2} y={gy-6} textAnchor="end" fontSize="10.5" fontFamily="Urbanist, system-ui, sans-serif" fill="var(--ochre)">gabarito {fmt(s.gab,1)} m</text>
+      <line x1={padL-4} x2={W-padR+4} y1={base} y2={base} stroke="var(--ink)" strokeWidth="1.5"/>
+      <text x={(W+padL)/2} y={base+20} textAnchor="middle" fontSize="10.5" fontFamily="Urbanist, system-ui, sans-serif" fill="var(--muted)">
+        {r.B} {r.B===1?"torre":"torres"} · maior altura {fmt(r.altura,2)} m{mostradas?" · exibindo até 10 por tipo":""}
+      </text>
+    </svg>
+  );
+}
+
+/* Uso do solo sobre a área da matrícula */
+function UsoSolo({r}){
+  const A = r.area||1;
+  const segs = [
+    {k:"Áreas públicas", a:r.doadoReal, c:"var(--don)"},
+    {k:"Projeção (TO)", a:r.toTotal||0, c:"var(--accent)"},
+    {k:"Pavimentado", a:r.areaPav, c:"var(--pave)"},
+    {k:"Permeável", a:r.perm, c:"var(--ok)"},
+  ];
+  const soma = segs.reduce((x,y)=>x+y.a,0);
+  const resto = Math.max(A - soma, 0);
+  segs.push({k:"Livre / lazer", a:resto, c:"var(--sunk)"});
+  const tot = Math.max(A, soma);
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex h-9 w-full rounded-md overflow-hidden" style={{border:"1px solid var(--line)"}}>
+        {segs.map(x=> x.a>0 && <div key={x.k} style={{width:(x.a/tot*100)+"%",background:x.c,transition:"width .25s"}} title={`${x.k}: ${m2(x.a)}`}/>)}
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+        {segs.map(x=>(
+          <div key={x.k} className="flex items-start gap-2 text-[12.5px] min-w-0">
+            <span className="mt-1 w-3 h-3 rounded-sm shrink-0" style={{background:x.c,border:"1px solid var(--line)"}}/>
+            <span className="min-w-0"><span className="block">{x.k}</span><span className="mono" style={{color:"var(--muted)"}}>{m2(x.a)} · {fmt(x.a/A*100,1)}%</span></span>
+          </div>
+        ))}
+      </div>
+      {soma > A + 0.5 && (
+        <div className="flex gap-2 text-[12.5px]" style={{color:"var(--bad)"}}><Icon name="alert" size={14} className="mt-0.5 shrink-0"/>As áreas somadas ({m2(soma)}) passam da área da matrícula ({m2(A)}).</div>
+      )}
+    </div>
+  );
+}
+
+/* ---------- Marca ---------- */
+/* Logotipo oficial VERTIS (arquivo logotipo_sem_registro.svg) */
+const Logo = ({h=20}) => (
+  <svg height={h} width={h*77.3/17.59} viewBox="0 0 77.3 17.59" fill="currentColor" role="img" aria-label="VERTIS">
+    <path d="M36.48,10.25v-.16c1.07,0,2-.12,2.78-.36.78-.24,1.43-.58,1.94-1.02.51-.44.88-.97,1.12-1.61s.36-1.34.36-2.13c0-1.59-.46-2.78-1.39-3.57-.93-.79-2.28-1.19-4.04-1.19h-7.42v1.93h2.01v.11c-.66,0-1.16.19-1.5.56s-.51.92-.51,1.63v12.85h2.3v-7.01h3.99l4.82,7.01h2.84l-4.82-7.04h-2.49ZM32.14,8.59V2.14h4.6c1.29,0,2.21.25,2.77.76.56.51.84,1.26.84,2.26,0,1.07-.32,1.91-.96,2.52s-1.68.91-3.11.91h-4.15Z"/>
+  <path d="M43.39,2.17h5.92v15.13h2.3V4.5c0-.8-.16-1.37-.48-1.71-.32-.34-.81-.51-1.47-.51v-.11h7.9V.21h-14.16v1.95Z"/>
+  <rect x="58.81" y=".21" width="2.28" height="17.08"/>
+  <path d="M77.08,11.12c-.15-.53-.41-1-.76-1.42-.36-.42-.83-.78-1.42-1.08-.59-.3-1.32-.53-2.2-.67l-4.34-.7c-.98-.16-1.7-.46-2.14-.9-.45-.44-.67-.98-.67-1.62,0-.36.07-.7.23-1.02.15-.32.4-.6.75-.84.35-.24.8-.43,1.37-.58.56-.14,1.26-.21,2.1-.21,1.64,0,2.84.31,3.6.92s1.14,1.57,1.14,2.88h2.2c0-.93-.13-1.75-.4-2.48-.27-.72-.68-1.34-1.25-1.85-.56-.51-1.28-.9-2.14-1.16-.87-.27-1.91-.4-3.12-.4s-2.2.12-3.07.35-1.57.56-2.11.98c-.54.42-.95.92-1.22,1.51-.27.59-.4,1.23-.4,1.93,0,.57.09,1.11.28,1.61s.47.96.86,1.36c.38.41.88.75,1.49,1.03s1.32.48,2.14.6l4.12.7c1.07.18,1.81.48,2.22.9s.62,1,.62,1.75c0,.87-.38,1.55-1.14,2.03-.76.48-1.96.72-3.6.72-.87,0-1.65-.09-2.32-.27-.67-.18-1.23-.44-1.67-.78-.45-.34-.78-.76-1-1.26-.22-.5-.33-1.05-.33-1.66h-2.22c0,.95.16,1.79.5,2.54.33.75.82,1.39,1.46,1.91s1.43.93,2.36,1.2c.93.28,1.99.42,3.19.42s2.3-.12,3.2-.35c.9-.23,1.64-.56,2.22-.99.58-.43,1.01-.94,1.3-1.53s.43-1.24.43-1.95c0-.57-.08-1.12-.23-1.65Z"/>
+  <path d="M16.17.21h-1.15c-.79,0-1.5.49-1.79,1.23l-5.9,15.36h-.16c.09-.5.16-.96.23-1.39.06-.43.09-.84.09-1.25s-.04-.8-.12-1.19c-.08-.39-.2-.82-.36-1.29L2.57.21H0l6.69,17.08h2.78L15.41,2.14h2.27v.11c-.68,0-1.18.19-1.51.58-.33.38-.5.97-.5,1.75v12.72h11.91v-1.93h-9.61v-5.73h8.22v-1.82h-8.22V2.14h9.61V.21h-11.42Z"/>
+  </svg>
+);
+function Regua({value,max,label}){
+  const p = ok(value)&&max>0 ? Math.min(value/max,1.25) : 0;
+  const over = p>1;
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="track relative h-[10px]">
+        <div className="regua sm absolute inset-y-0 left-0" style={{width:Math.min(p,1)*100+"%",transition:"width .3s"}}/>
+      </div>
+      {label && <div className="flex justify-between text-[11.5px]" style={{color:"var(--muted)"}}><span>{label}</span><span className="mono" style={{color:over?"var(--bad)":"var(--lav)"}}>{fmt(p*100,0)}%</span></div>}
+    </div>
+  );
+}
+
+/* ---------- Estudo em branco ---------- */
+const VAZIO = {
+  nome:"", cenario:"Cenário A", produto:"",
+  iaBas:null, iaMax:null, to:null, tp:null, gab:null, rF:null, rL:null, rFu:null,
+  terreo:null, tipo:null, toArea:null, pd:null, uhPav:null,
+  area:null,
+  doacoes: INICIAL.doacoes.map(d=>({...d,pct:0})),
+  fracaoOn:false, fracao:30,
+  b1:1, p1:null, b2:0, p2:0,
+  extras:[],
+  vagasPadrao:0, vagasPcd:0, motos:0, bikes:0, areaVaga:12, areaMoto:2,
+  via:0, permLivre:0, permVaga:7.3,
+  valorTerreno:0, valorUH:0,
+};
+const normalizar = (d) => ({...VAZIO, ...d, doacoes: d?.doacoes || VAZIO.doacoes, extras: d?.extras || []});
+
+/* ---------- Avaliação lei × projeto ---------- */
+function avaliar(s, r){
+  const st = (cond, okL="Atende", badL="Não atende", t="bad") => cond===null ? {t:"na",l:"Sem dados"} : cond ? {t:"ok",l:okL} : {t,l:badL};
+  const linhas = [
+    {p:"Índice de aproveitamento", lei:`${fmt(s.iaMax,2)} máx.`, proj:`${fmt(r.ia,2)} · ${m2(r.compTorre)}`, st:st(ok(r.ia)?r.ia<=s.iaMax+1e-9:null,"Atende","Excede")},
+    {p:"IA básico (outorga)", lei:ok(s.iaBas)?`${fmt(s.iaBas,2)} · ${m2(s.iaBas*r.liquida)}`:"não informado na planilha", proj:`excedente ${m2(r.outorga)}`, st: !ok(r.outorga)?{t:"na",l:"Sem dados"}: r.outorga>0.5?{t:"warn",l:"Contrapartida"}:{t:"ok",l:"Dispensada"}},
+    {p:"Taxa de ocupação", lei:`${fmt(s.to,1)}% · ${m2(s.to/100*r.liquida)}`, proj:`${pct(r.to)} · ${m2(r.toTotal)}`, st:st(ok(r.to)?r.to<=s.to/100+1e-9:null,"Atende","Excede")},
+    {p:"Taxa de permeabilidade", lei:`${fmt(s.tp,1)}% mín. · ${m2(s.tp/100*r.liquida)}`, proj:`${pct(r.tp)} · ${m2(r.perm)}`, st:st(ok(r.tp)?r.tp>=s.tp/100-1e-9:null,"Atende","Abaixo")},
+    {p:"Gabarito", lei:`${fmt(s.gab,1)} m`, proj:`${fmt(r.altura,2)} m · ${r.pavMaior} pav.`, st:st(ok(r.altura)?r.altura<=s.gab+1e-9:null,"Atende","Excede")},
+    {p:"Vagas de carro", lei:`mín. ${r.vagasMin} (1 a cada 6 UH)`, proj:`${r.vagas} (${s.vagasPcd||0} PCD)`, st:st(r.vagas>=r.vagasMin,"Atende","Faltam "+(r.vagasMin-r.vagas))},
+    {p:"Fração do lote", lei:s.fracaoOn?`${fmt(s.fracao,1)} m²/UH · máx. ${fmt(r.uhMaxFracao)} UH`:"não aplicada", proj:`${fmt(r.uh)} UH`, st: s.fracaoOn ? st(r.uh<=r.uhMaxFracao,"Atende","Excede") : {t:"na",l:"Não aplicada"}},
+    {p:"Áreas públicas", lei:`${fmt(r.area?r.doadoExig/r.area*100:0,1)}% da matrícula`, proj:m2(r.doadoExig,2), st:{t:"ok",l:"Calculado"}},
+    {p:"Recuos (F / L / Fu)", lei:`${fmt(s.rF,1)} / ${fmt(s.rL,1)} / ${fmt(s.rFu,1)} m`, proj:"conferir em planta", st:{t:"na",l:"Verificar"}},
+  ];
+  return linhas;
+}
+function resumo(s){
+  const r = calc(s);
+  const linhas = avaliar(s, r);
+  const falhas = linhas.filter(l=>l.st.t==="bad").map(l=>l.p);
+  return {r, linhas, falhas};
+}
+
+/* ---------- Armazenamento: planilha (Apps Script) ou navegador (modo local) ---------- */
+const NA_PLANILHA = !!(window.google && google.script && google.script.run);
+const chamar = (fn, ...args) => new Promise((res,rej)=>{
+  google.script.run.withSuccessHandler(res).withFailureHandler(e=>rej(new Error(traduzErro(e)))) [fn](...args);
+});
+function traduzErro(e){
+  const m = String(e && e.message || e);
+  if(/permiss|permission|access/i.test(m)) return "Sua conta Google não tem acesso à planilha de estudos. Peça a um sócio para compartilhá-la com você como editor.";
+  if(/lock|trava/i.test(m)) return "Outro sócio está salvando agora. Tente de novo em alguns segundos.";
+  return "A planilha respondeu com erro: "+m;
+}
+const Planilha = {
+  iniciar: () => chamar("iniciar"),
+  listar: () => chamar("listar"),
+  salvar: (row) => chamar("salvar", row),
+};
+const Local = {
+  chave:"vertis_estudos",
+  async iniciar(){ return {email:"modo-local", rows: await this.listar()}; },
+  async listar(){ try{ return JSON.parse(localStorage.getItem(this.chave)||"[]"); }catch(e){ return []; } },
+  async salvar(row){
+    const rows = await this.listar();
+    row = {...row, versao: rows.filter(x=>x.id_estudo===row.id_estudo).reduce((m,x)=>Math.max(m,+x.versao||0),0)+1, salvo_em:new Date().toISOString()};
+    rows.push(row);
+    try{ localStorage.setItem(this.chave, JSON.stringify(rows)); }
+    catch(e){ throw new Error("Este navegador bloqueou o armazenamento local."); }
+    return row;
+  },
+};
+const Store = NA_PLANILHA ? Planilha : Local;
+
+const novoId = () => (crypto.randomUUID ? crypto.randomUUID() : "e"+Date.now().toString(36)+Math.random().toString(36).slice(2,8));
+const dataBR = (iso) => { try{ return new Date(iso).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",year:"2-digit",hour:"2-digit",minute:"2-digit"}); }catch(e){ return iso; } };
+const quem = (email) => (email||"").split("@")[0] || "—";
+const r2 = (v,d=2) => ok(v) ? Math.round(v*10**d)/10**d : "";
+
+function montarLinha(s, meta, versao, email){
+  const {r, falhas} = resumo(s);
+  return {
+    id_estudo: meta.id, terreno: s.nome || "Sem nome", cenario: s.cenario || "Cenário A", versao,
+    salvo_em: new Date().toISOString(), salvo_por: email, produto: s.produto || "",
+    area_matricula: r2(r.area), area_liquida: r2(r.liquida), uh: r.uh, ia: r2(r.ia,3), to: r2(r.to,4), tp: r2(r.tp,4),
+    altura_m: r2(r.altura), vgv: r2(r.vgv,0), permuta: r2(r.permuta,4),
+    situacao: falhas.length ? "Não atende: "+falhas.join(", ") : "Atende",
+    dados_json: JSON.stringify(s),
+  };
+}
+/* Última versão de cada estudo */
+function agrupar(rows){
+  const m = new Map();
+  for(const row of rows){
+    const v = +row.versao||0;
+    const cur = m.get(row.id_estudo);
+    if(!cur) m.set(row.id_estudo, {ultima:row, versoes:[row]});
+    else { cur.versoes.push(row); if(v > (+cur.ultima.versao||0)) cur.ultima = row; }
+  }
+  for(const e of m.values()) e.versoes.sort((a,b)=>(+b.versao)-(+a.versao));
+  return [...m.values()].sort((a,b)=> String(b.ultima.salvo_em).localeCompare(String(a.ultima.salvo_em)));
+}
+const lerDados = (row) => { try{ return normalizar(JSON.parse(row.dados_json)); }catch(e){ return null; } };
+
+/* ---------- Botões ---------- */
+const Btn = ({icon,children,onClick,primary,disabled,title}) => (
+  <button type="button" onClick={onClick} disabled={disabled} title={title}
+    className="inline-flex items-center gap-2 text-[13px] px-3.5 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+    style={primary ? {background:"var(--accent)",color:"var(--claro)",border:"1px solid var(--accent)",fontWeight:500}
+                   : {border:"1px solid var(--line)",color:"var(--muted)"}}>
+    {icon && <Icon name={icon} size={15}/>}{children}
+  </button>
+);
+
+/* ---------- Editor do estudo ---------- */
+function Editor({s, setS, meta, sujo, salvando, onSalvar, onNovo, onDuplicar, totalVersoes}){
+  const set = (k)=>(v)=>setS(p=>({...p,[k]:v}));
+  const r = useMemo(()=>calc(s),[s]);
+  const linhas = useMemo(()=>avaliar(s,r),[s,r]);
+  const falhas = linhas.filter(l=>l.st.t==="bad").map(l=>l.p);
+
+  const setDoacao = (i,k,v)=>setS(p=>({...p,doacoes:p.doacoes.map((d,j)=>j===i?{...d,[k]:v}:d)}));
+  const setExtra = (i,k,v)=>setS(p=>({...p,extras:p.extras.map((e,j)=>j===i?{...e,[k]:v}:e)}));
+  const addExtra = ()=>setS(p=>({...p,extras:[...p.extras,{nome:"Novo item",area:0,coberta:true}]}));
+  const delExtra = (i)=>setS(p=>({...p,extras:p.extras.filter((_,j)=>j!==i)}));
+  const tipFalta = [!ok(s.terreo)&&"área IA térreo", !ok(s.tipo)&&"área IA tipo", !ok(s.toArea)&&"área TO", !ok(s.pd)&&"pé-direito"].filter(Boolean);
+
+  const antiga = meta && totalVersoes && meta.versao < totalVersoes;
+
+  return (
+    <>
+      <section className="flex flex-col gap-6">
+        <div className="tagline eyebrow" aria-hidden="true">
+          <span>Revolucionando</span><span>negociação</span><span>metro</span><span>a</span><span>metro.</span>
+        </div>
+        <div className="regua" style={{width:`${Math.max(Math.min(ok(r.ia)&&s.iaMax?r.ia/s.iaMax:0,1)*100,3)}%`,transition:"width .4s"}} title="Aproveitamento do IA máximo"/>
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="flex flex-col gap-3 min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <input aria-label="Nome do terreno" id="nome-top" className="disp bg-transparent text-[22px] sm:text-[28px] leading-tight min-w-0 flex-1 outline-none" style={{color:"var(--ink)",borderBottom:"1px solid var(--line)"}}
+                value={s.nome} placeholder="Nome do terreno" onChange={e=>set("nome")(e.target.value)}/>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-[12.5px]" style={{color:"var(--muted)"}}>
+              <label htmlFor="cenario" className="eyebrow">Cenário</label>
+              <input id="cenario" className="inp" style={{width:160}} value={s.cenario} onChange={e=>set("cenario")(e.target.value)}/>
+              {meta
+                ? <span>Versão {meta.versao}{totalVersoes?` de ${totalVersoes}`:""} · salva por {quem(meta.salvo_por)} em {dataBR(meta.salvo_em)}</span>
+                : <span>Estudo ainda não salvo</span>}
+              {sujo && <span className="px-2 py-0.5 rounded-full" style={{border:"1px solid var(--warn)",color:"var(--warn)"}}>Alterações não salvas</span>}
+              {antiga && <span className="px-2 py-0.5 rounded-full" style={{border:"1px solid var(--lav)",color:"var(--lav)"}}>Versão anterior · salvar cria a versão {totalVersoes+1}</span>}
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Btn icon="filePlus" onClick={onNovo}>Novo estudo</Btn>
+            <Btn icon="copy" onClick={onDuplicar} title="Cria um novo cenário a partir deste">Duplicar cenário</Btn>
+            <Btn icon="save" primary onClick={onSalvar} disabled={salvando}>{salvando ? "Salvando…" : meta ? "Salvar nova versão" : "Salvar estudo"}</Btn>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className="text-[12.5px]" style={{color:"var(--muted)"}}>{s.produto ? s.produto+" · " : ""}IA {fmt(s.iaMax,2)} · TO {fmt(s.to,0)}% · TP {fmt(s.tp,0)}% · gabarito {fmt(s.gab,1)} m</span>
+          {falhas.length>0
+            ? <div className="flex items-center gap-2 text-[12px] px-3 py-1.5 rounded-full" style={{border:"1px solid var(--bad)",color:"var(--bad)"}}><Icon name="alert" size={14}/>Não atende: {falhas.join(", ")}</div>
+            : <div className="flex items-center gap-2 text-[12px] px-3 py-1.5 rounded-full" style={{border:"1px solid var(--ok)",color:"var(--ok)"}}><Icon name="check" size={14}/>Atende aos parâmetros urbanísticos</div>}
+        </div>
+      </section>
+
+      <div className="grid gap-5 lg:grid-cols-[380px_minmax(0,1fr)] items-start">
+        <aside className="panel p-5 flex flex-col gap-3.5" style={{background:"var(--raised)"}}>
+          <h2 className="disp text-[13px]">Dados do terreno</h2>
+
+          <Group icon="map" title="Terreno">
+            <Row id="produto" label="Produto"><input id="produto" className="inp" style={{width:180}} value={s.produto} placeholder="Ex.: Residencial faixa 2" onChange={e=>set("produto")(e.target.value)}/></Row>
+            <Row id="area" label="Área da matrícula / levantamento"><NumIn id="area" value={s.area} onChange={set("area")} step={10} unit="m²"/></Row>
+            <div className="flex flex-col gap-1.5">
+              <div className="grid grid-cols-[1fr_64px_96px] gap-2 eyebrow"><span>Área pública</span><span className="text-right">%</span><span className="text-right">Área m²</span></div>
+              {r.doacoes.map((d,i)=>(
+                <div key={d.k} className="grid grid-cols-[1fr_64px_96px] gap-2 items-center">
+                  <label htmlFor={"dp-"+d.k} className="text-[13px] leading-tight">{d.label}</label>
+                  <input id={"dp-"+d.k} className="inp n" style={{width:64}} type="number" step="0.5" min="0" value={d.pct??""} onChange={e=>setDoacao(i,"pct",num(e.target.value))}/>
+                  <span className="mono text-[13px] text-right">{fmt(d.exig,2)}</span>
+                </div>
+              ))}
+              <div className="flex justify-between text-[12.5px] pt-1"><span style={{color:"var(--muted)"}}>Total de áreas públicas</span><span className="mono">{m2(r.doadoExig,2)}</span></div>
+              <div className="flex justify-between text-[12.5px]"><span style={{color:"var(--muted)"}}>Área líquida do empreendimento</span><span className="mono font-medium">{m2(r.liquida,2)}</span></div>
+            </div>
+            <Row id="fracaoOn" label="Aplicar fração do lote">
+              <span className="flex items-center gap-2">
+                <input id="fracaoOn" type="checkbox" checked={s.fracaoOn} onChange={e=>set("fracaoOn")(e.target.checked)}/>
+                <NumIn id="fracao" value={s.fracao} onChange={set("fracao")} unit="m²/UH" w={70}/>
+              </span>
+            </Row>
+          </Group>
+
+          <Group icon="law" title="Parâmetros urbanísticos">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+              <Row id="iaBas" label="IA básico"><NumIn id="iaBas" value={s.iaBas} onChange={set("iaBas")} step={0.1} w={64}/></Row>
+              <Row id="iaMax" label="IA máximo"><NumIn id="iaMax" value={s.iaMax} onChange={set("iaMax")} step={0.1} w={64}/></Row>
+              <Row id="to" label="TO"><NumIn id="to" value={s.to} onChange={set("to")} unit="%" w={64}/></Row>
+              <Row id="tp" label="TP"><NumIn id="tp" value={s.tp} onChange={set("tp")} unit="%" w={64}/></Row>
+              <Row id="gab" label="Gabarito"><NumIn id="gab" value={s.gab} onChange={set("gab")} step={0.5} unit="m" w={64}/></Row>
+              <Row id="rF" label="Recuo frontal"><NumIn id="rF" value={s.rF} onChange={set("rF")} step={0.5} unit="m" w={64}/></Row>
+              <Row id="rL" label="Recuo lateral"><NumIn id="rL" value={s.rL} onChange={set("rL")} step={0.5} unit="m" w={64}/></Row>
+              <Row id="rFu" label="Recuo fundos"><NumIn id="rFu" value={s.rFu} onChange={set("rFu")} step={0.5} unit="m" w={64}/></Row>
+            </div>
+          </Group>
+
+          <Group icon="building" title="Tipologia e implantação">
+            {tipFalta.length>0 && <div className="flex gap-2 text-[12px] p-2 rounded-md" style={{background:"var(--ochre-soft)"}}><Icon name="alert" size={14} className="mt-0.5 shrink-0" style={{color:"var(--ochre)"}}/>Preencha {tipFalta.join(", ")} para calcular as áreas.</div>}
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+              <Row id="terreo" label="Área IA térreo"><NumIn id="terreo" value={s.terreo} onChange={set("terreo")} step={0.01} w={74}/></Row>
+              <Row id="tipo" label="Área IA tipo"><NumIn id="tipo" value={s.tipo} onChange={set("tipo")} step={0.01} w={74}/></Row>
+              <Row id="toArea" label="Área TO"><NumIn id="toArea" value={s.toArea} onChange={set("toArea")} step={0.01} w={74}/></Row>
+              <Row id="pd" label="Pé-direito"><NumIn id="pd" value={s.pd} onChange={set("pd")} step={0.01} w={74}/></Row>
+              <Row id="uhPav" label="UH/pavto"><NumIn id="uhPav" value={s.uhPav} onChange={set("uhPav")} w={74}/></Row>
+            </div>
+            <div className="flex flex-col gap-1.5 pt-1">
+              <div className="grid grid-cols-[1fr_74px_74px] gap-2 eyebrow"><span></span><span className="text-right">Torres</span><span className="text-right">Pavtos</span></div>
+              {[["Padrão · tipo 1","b1","p1"],["Padrão · tipo 2","b2","p2"]].map(([l,b,p])=>(
+                <div key={b} className="grid grid-cols-[1fr_74px_74px] gap-2 items-center">
+                  <label htmlFor={b} className="text-[13px]">{l}</label>
+                  <input id={b} className="inp n" style={{width:74}} type="number" min="0" value={s[b]??""} onChange={e=>set(b)(num(e.target.value))}/>
+                  <input aria-label={l+" pavimentos"} id={p} className="inp n" style={{width:74}} type="number" min="0" value={s[p]??""} onChange={e=>set(p)(num(e.target.value))}/>
+                </div>
+              ))}
+              <input aria-label="Pavimentos por torre, tipo 1" id="p1r" type="range" min="1" max="40" value={s.p1||1} onChange={e=>set("p1")(+e.target.value)}/>
+            </div>
+          </Group>
+
+          <Group icon="layers" title="Itens extras" open={false} aside={<span className="mono text-[11px]" style={{color:"var(--muted)"}}>{s.extras.length}</span>}>
+            <div className="grid grid-cols-[1fr_78px_auto_24px] gap-2 eyebrow"><span>Item</span><span className="text-right">Área m²</span><span>Coberto</span><span></span></div>
+            {s.extras.map((e,i)=>(
+              <div key={i} className="grid grid-cols-[1fr_78px_auto_24px] gap-2 items-center">
+                <input aria-label="Nome do item" id={"en-"+i} className="inp" style={{fontFamily:"var(--f-body)"}} value={e.nome} onChange={ev=>setExtra(i,"nome",ev.target.value)}/>
+                <input aria-label={e.nome+" área"} id={"ea-"+i} className="inp n" style={{width:78}} type="number" step="0.01" value={e.area??""} onChange={ev=>setExtra(i,"area",num(ev.target.value))}/>
+                <span className="flex justify-center w-[52px]"><input aria-label={e.nome+" coberto"} id={"ec-"+i} type="checkbox" checked={e.coberta} onChange={ev=>setExtra(i,"coberta",ev.target.checked)}/></span>
+                <button type="button" aria-label={"Remover "+e.nome} onClick={()=>delExtra(i)} className="rounded p-0.5" style={{color:"var(--muted)"}}><Icon name="x" size={15}/></button>
+              </div>
+            ))}
+            <button type="button" onClick={addExtra} className="self-start inline-flex items-center gap-1.5 text-[12.5px] px-2.5 py-1 rounded-md" style={{border:"1px solid var(--line)"}}><Icon name="plus" size={13}/>Adicionar item</button>
+            <span className="text-[11.5px]" style={{color:"var(--muted)"}}>Itens cobertos entram na área construída e na TO. Descobertos ficam só como lazer.</span>
+          </Group>
+
+          <Group icon="car" title="Vagas e permeabilidade" open={false}>
+            <Row id="vagasPadrao" label="Vagas padrão"><NumIn id="vagasPadrao" value={s.vagasPadrao} onChange={set("vagasPadrao")}/></Row>
+            <Row id="vagasPcd" label="Vagas PCD"><NumIn id="vagasPcd" value={s.vagasPcd} onChange={set("vagasPcd")}/></Row>
+            <Row id="motos" label="Vagas de moto"><NumIn id="motos" value={s.motos} onChange={set("motos")}/></Row>
+            <Row id="bikes" label="Vagas de bicicleta"><NumIn id="bikes" value={s.bikes} onChange={set("bikes")}/></Row>
+            <Row id="areaVaga" label="Área por vaga de carro" hint="Planilha: 2,4 × 5,0 m"><NumIn id="areaVaga" value={s.areaVaga} onChange={set("areaVaga")} step={0.1} unit="m²"/></Row>
+            <Row id="via" label="Via interna pavimentada"><NumIn id="via" value={s.via} onChange={set("via")} step={0.1} unit="m²"/></Row>
+            <Row id="permLivre" label="Área permeável livre"><NumIn id="permLivre" value={s.permLivre} onChange={set("permLivre")} step={0.01} unit="m²"/></Row>
+            <Row id="permVaga" label="Permeável por vaga" hint="Piso drenante nas vagas padrão"><NumIn id="permVaga" value={s.permVaga} onChange={set("permVaga")} step={0.1} unit="m²"/></Row>
+          </Group>
+
+          <Group icon="coins" title="Valores" open={true}>
+            <Row id="valorTerreno" label="Valor do terreno" hint={r.terrenoM2?`${brl(r.terrenoM2)} por m²`:"Informe para calcular a permuta"}><NumIn id="valorTerreno" value={s.valorTerreno} onChange={set("valorTerreno")} step={10000} unit="R$" w={110}/></Row>
+            <Row id="valorUH" label="Valor médio da UH"><NumIn id="valorUH" value={s.valorUH} onChange={set("valorUH")} step={1000} unit="R$" w={110}/></Row>
+          </Group>
+        </aside>
+
+        <main className="flex flex-col gap-5 min-w-0">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+            <Kpi icon="home" label="Unidades" value={`${fmt(r.uh)} UH`} sub={`${fmt(r.uhPadrao)} padrão + ${fmt(r.uhPcd)} PCD · ${r.P} pavtos no total`}/>
+            <Kpi icon="coins" label="VGV estimado" value={brl(r.vgv)} sub={`${fmt(r.uh)} UH × ${brl(s.valorUH)}`} tone="ochre"/>
+            <Kpi icon="building" label="Índice de aproveitamento" value={fmt(r.ia,2)} sub={`máx. ${fmt(s.iaMax,2)} · ${m2(r.compTorre)} computáveis`} tone={ok(r.ia)&&r.ia>s.iaMax+1e-9?"bad":null}/>
+            <Kpi icon="target" label="Permuta" value={r.permuta!==null?pct(r.permuta,2):"—"} sub={r.permuta!==null?`terreno ${brl(s.valorTerreno)} ÷ VGV`:"Informe o valor do terreno"}/>
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+            <section className="panel p-4 flex flex-col gap-2 min-w-0">
+              <div className="flex items-baseline justify-between gap-2">
+                <h2 className="disp text-[13px]">Corte das torres</h2>
+                <span className="eyebrow">esquemático</span>
+              </div>
+              <Corte r={r} s={s}/>
+              <p className="text-[12px]" style={{color:"var(--muted)"}}>Altura = pavimentos × pé-direito da tipologia ({fmt(s.pd,2)} m). Torre em vermelho passa do gabarito. Linha lilás = limite do gabarito.</p>
+            </section>
+
+            <section className="panel p-4 flex flex-col gap-3 min-w-0">
+              <div className="flex items-baseline justify-between gap-2">
+                <h2 className="disp text-[13px]">Capacidade máxima</h2>
+                <span className="eyebrow">com {r.B} {r.B===1?"torre":"torres"}</span>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="big text-[44px] leading-none" style={{color:"var(--lav)"}}>{fmt(r.uhCap)}</span>
+                <span className="text-[13px]" style={{color:"var(--muted)"}}>UH possíveis{r.limitanteUH?` · limitado por ${r.limitanteUH.toLowerCase()}`:""}</span>
+              </div>
+              <div className="flex flex-col text-[13px]">
+                {[
+                  ["Pavimentos totais pelo IA máximo", r.pavIA!==null?`${fmt(r.pavIA)} pavtos`:"—"],
+                  ["Pavimentos por torre pelo gabarito", r.pavGab!==null?`${fmt(r.pavGab)} pavtos`:"—"],
+                  ["Torres que cabem na TO", r.torresTO!==null?`${fmt(r.torresTO)} torres`:"—"],
+                  ["UH pela fração do lote", r.uhMaxFracao!==null?`${fmt(r.uhMaxFracao)} UH`:"não aplicada"],
+                  ["Projeto atual", `${fmt(r.P)} pavtos · ${fmt(r.uh)} UH`],
+                ].map(([k,v],i)=>(
+                  <div key={i} className="flex justify-between gap-3 py-1.5" style={{borderBottom: i<4?"1px solid var(--line)":"none"}}>
+                    <span style={{color: i===4?"var(--ink)":"var(--muted)"}} className={i===4?"font-medium":""}>{k}</span><span className="mono text-right">{v}</span>
+                  </div>
+                ))}
+              </div>
+              <Regua value={r.uh} max={r.uhCap} label="Unidades do projeto sobre a capacidade"/>
+              {r.pavCap!==null && r.P>r.pavCap && <div className="flex gap-2 text-[12.5px]" style={{color:"var(--bad)"}}><Icon name="alert" size={14} className="mt-0.5 shrink-0"/>O projeto tem {r.P - r.pavCap} pavimento(s) acima do permitido.</div>}
+              {r.pavCap!==null && r.P<r.pavCap && <div className="flex gap-2 text-[12.5px]" style={{color:"var(--ok)"}}><Icon name="check" size={14} className="mt-0.5 shrink-0"/>Ainda cabem {r.pavCap - r.P} pavimento(s), ou {fmt((r.uhCap??0)-r.uh)} UH.</div>}
+            </section>
+          </div>
+
+          <section className="panel p-4 flex flex-col gap-3">
+            <div className="flex items-baseline justify-between gap-2 flex-wrap">
+              <h2 className="disp text-[13px]">Uso do solo</h2>
+              <span className="mono text-[12px]" style={{color:"var(--muted)"}}>matrícula {m2(r.area,2)} · líquida {m2(r.liquida,2)}</span>
+            </div>
+            <UsoSolo r={r}/>
+          </section>
+
+          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              ["Área construída total", m2(r.constrTotal,2), `torres ${m2(r.constrTorre,2)} + extras ${m2(r.extrasTO,2)}`],
+              ["Área computável (IA)", m2(r.compTorre,2), `térreo ${fmt(s.terreo,2)} × ${r.B} + tipo ${fmt(s.tipo,2)} × ${r.P-r.B}`],
+              ["Área de projeção (TO)", m2(r.toTotal,2), `${pct(r.to)} da área líquida`],
+              ["Área permeável", m2(r.perm,2), `${pct(r.tp)} · livre ${m2(s.permLivre,0)} + vagas`],
+            ].map(([k,v,sub])=>(
+              <div key={k} className="flex flex-col gap-1 px-1">
+                <span className="eyebrow">{k}</span>
+                <span className="mono text-[18px] font-medium">{v}</span>
+                <span className="text-[12px]" style={{color:"var(--muted)"}}>{sub}</span>
+              </div>
+            ))}
+          </section>
+
+          <section className="panel flex flex-col min-w-0">
+            <div className="p-4 pb-2 flex items-baseline justify-between gap-2 flex-wrap">
+              <h2 className="disp text-[13px]">Lei × projeto</h2>
+              <span className="eyebrow">conferência de parâmetros</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="text-[13px] min-w-[600px]">
+                <thead><tr className="eyebrow" style={{background:"var(--raised)"}}><th>Parâmetro</th><th>Exigido / permitido</th><th>Projeto</th><th>Situação</th></tr></thead>
+                <tbody>
+                  {linhas.map(l=>(
+                    <tr key={l.p}><td className="font-medium">{l.p}</td><td className="mono">{l.lei}</td><td className="mono">{l.proj}</td><td><Status st={l.st}/></td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="px-4 py-3 text-[12px]" style={{color:"var(--muted)"}}>
+              Áreas públicas = percentual × área da matrícula. IA, TO e TP calculados sobre a área líquida (matrícula menos áreas públicas). UH PCD = 3% do total, arredondado para cima. Vagas mínimas = 1 a cada 6 UH. Itens cobertos entram na TO, como na planilha. Estudo preliminar, não substitui a análise da legislação municipal.
+            </p>
+          </section>
+        </main>
+      </div>
+    </>
+  );
+}
+
+/* ---------- Terrenos salvos ---------- */
+function Salvos({grupos, carregando, erro, onAbrir, onRecarregar, comparar, setComparar}){
+  const [busca, setBusca] = useState("");
+  const [aberto, setAberto] = useState(null);
+  const q = busca.trim().toLowerCase();
+  const lista = grupos.filter(g=>!q || [g.ultima.terreno,g.ultima.cenario,g.ultima.produto,g.ultima.salvo_por].join(" ").toLowerCase().includes(q));
+  const porTerreno = {};
+  for(const g of lista){ (porTerreno[g.ultima.terreno] ||= []).push(g); }
+  const toggle = (id)=>setComparar(c=> c.includes(id) ? c.filter(x=>x!==id) : c.length>=4 ? c : [...c,id]);
+
+  return (
+    <section className="flex flex-col gap-5">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <span className="eyebrow">Base compartilhada</span>
+          <h1 className="disp text-[22px] sm:text-[28px]">Terrenos salvos</h1>
+          <span className="text-[12.5px]" style={{color:"var(--muted)"}}>{grupos.length} {grupos.length===1?"estudo":"estudos"} em {Object.keys(Object.fromEntries(grupos.map(g=>[g.ultima.terreno,1]))).length} terrenos · marque até 4 cenários para comparar</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="relative">
+            <Icon name="search" size={15} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{color:"var(--muted)"}}/>
+            <input aria-label="Buscar" id="busca" className="inp" style={{width:220,paddingLeft:30}} placeholder="Buscar terreno, cenário, sócio" value={busca} onChange={e=>setBusca(e.target.value)}/>
+          </span>
+          <Btn icon="reset" onClick={onRecarregar} disabled={carregando}>{carregando?"Atualizando…":"Atualizar"}</Btn>
+        </div>
+      </div>
+
+      {erro && <div className="flex gap-2 p-3.5 rounded-lg text-[13px]" style={{border:"1px solid var(--bad)",color:"var(--bad)"}}><Icon name="alert" size={15} className="mt-0.5 shrink-0"/>{erro}</div>}
+
+      {!carregando && grupos.length===0 && !erro && (
+        <div className="panel p-8 flex flex-col items-center gap-3 text-center">
+          <Icon name="folder" size={28} style={{color:"var(--lav)"}}/>
+          <div className="disp text-[14px]">Nenhum estudo salvo ainda</div>
+          <p className="text-[13px] max-w-[46ch]" style={{color:"var(--muted)"}}>Abra a aba Estudo, preencha os dados do terreno e clique em Salvar estudo. Ele aparece aqui para todos os sócios.</p>
+        </div>
+      )}
+
+      {Object.entries(porTerreno).map(([terreno, gs])=>(
+        <div key={terreno} className="panel overflow-hidden">
+          <div className="px-4 py-3 flex items-center justify-between gap-2" style={{borderBottom:"1px solid var(--line)",background:"var(--raised)"}}>
+            <span className="disp text-[13px]">{terreno}</span>
+            <span className="eyebrow">{gs.length} {gs.length===1?"cenário":"cenários"} · {m2(+gs[0].ultima.area_matricula)}</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="text-[13px] min-w-[760px]">
+              <thead><tr className="eyebrow"><th className="w-[42px]"></th><th>Cenário</th><th>UH</th><th>IA</th><th>VGV</th><th>Situação</th><th>Última versão</th><th></th></tr></thead>
+              <tbody>
+                {gs.map(g=>{
+                  const u = g.ultima, id = u.id_estudo, sel = comparar.includes(id);
+                  return (
+                    <React.Fragment key={id}>
+                      <tr style={sel?{background:"var(--accent-soft)"}:null}>
+                        <td><input type="checkbox" aria-label={"Comparar "+u.cenario} id={"cmp-"+id} checked={sel} disabled={!sel && comparar.length>=4} onChange={()=>toggle(id)}/></td>
+                        <td><div className="font-medium">{u.cenario}</div>{u.produto && <div className="text-[12px]" style={{color:"var(--muted)"}}>{u.produto}</div>}</td>
+                        <td className="mono">{fmt(+u.uh)}</td>
+                        <td className="mono">{fmt(+u.ia,2)}</td>
+                        <td className="mono">{brl(+u.vgv)}</td>
+                        <td>{String(u.situacao).startsWith("Atende")
+                          ? <Status st={{t:"ok",l:"Atende"}}/>
+                          : <span title={u.situacao}><Status st={{t:"bad",l:"Não atende"}}/></span>}</td>
+                        <td className="text-[12.5px]"><div>v{u.versao} · {quem(u.salvo_por)}</div><div style={{color:"var(--muted)"}}>{dataBR(u.salvo_em)}</div></td>
+                        <td className="text-right whitespace-nowrap">
+                          <span className="inline-flex gap-1.5">
+                            <Btn icon="history" onClick={()=>setAberto(aberto===id?null:id)}>{g.versoes.length}</Btn>
+                            <Btn icon="folder" primary onClick={()=>onAbrir(u)}>Abrir</Btn>
+                          </span>
+                        </td>
+                      </tr>
+                      {aberto===id && (
+                        <tr><td></td><td colSpan="7" style={{background:"var(--raised)"}}>
+                          <div className="eyebrow mb-2">Histórico de versões</div>
+                          <div className="flex flex-col">
+                            {g.versoes.map(v=>(
+                              <div key={v.versao+v.salvo_em} className="flex flex-wrap items-center justify-between gap-3 py-1.5" style={{borderBottom:"1px solid var(--line)"}}>
+                                <span className="mono">v{v.versao}</span>
+                                <span className="flex-1 text-[12.5px]" style={{color:"var(--muted)"}}>{quem(v.salvo_por)} · {dataBR(v.salvo_em)} · {fmt(+v.uh)} UH · IA {fmt(+v.ia,2)}</span>
+                                <button type="button" onClick={()=>onAbrir(v)} className="text-[12.5px] px-2 py-0.5 rounded-md" style={{border:"1px solid var(--line)",color:"var(--lav)"}}>Abrir esta versão</button>
+                              </div>
+                            ))}
+                          </div>
+                        </td></tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+/* ---------- Comparar cenários ---------- */
+function Comparar({grupos, comparar, setComparar, onAbrir, irParaSalvos}){
+  const itens = comparar.map(id=>grupos.find(g=>g.ultima.id_estudo===id)).filter(Boolean).map(g=>{
+    const d = lerDados(g.ultima); const res = d ? resumo(d) : null;
+    return {row:g.ultima, d, res};
+  }).filter(x=>x.d);
+  if(itens.length<2) return (
+    <section className="panel p-8 flex flex-col items-center gap-3 text-center">
+      <Icon name="columns" size={28} style={{color:"var(--lav)"}}/>
+      <div className="disp text-[14px]">Escolha pelo menos 2 cenários</div>
+      <p className="text-[13px] max-w-[46ch]" style={{color:"var(--muted)"}}>Em Terrenos salvos, marque a caixa ao lado de cada cenário que quer comparar. Dá para comparar até 4 ao mesmo tempo.</p>
+      <Btn icon="folder" primary onClick={irParaSalvos}>Ir para terrenos salvos</Btn>
+    </section>
+  );
+  const melhor = (f) => Math.max(...itens.map(i=>f(i)??-Infinity));
+  const linhas = [
+    ["Área da matrícula", i=>m2(i.res.r.area,2)],
+    ["Área líquida", i=>m2(i.res.r.liquida,2)],
+    ["Torres × pavimentos", i=>`${i.res.r.B} torre(s) · ${i.res.r.P} pavtos`],
+    ["Unidades", i=>fmt(i.res.r.uh)+" UH", i=>i.res.r.uh],
+    ["VGV estimado", i=>brl(i.res.r.vgv), i=>i.res.r.vgv],
+    ["Permuta", i=>i.res.r.permuta!==null?pct(i.res.r.permuta,2):"—"],
+    ["Capacidade máxima", i=>fmt(i.res.r.uhCap)+" UH"],
+    ["IA utilizado / máx.", i=>`${fmt(i.res.r.ia,2)} / ${fmt(i.d.iaMax,2)}`, null, i=>i.res.linhas[0].st],
+    ["TO utilizada / máx.", i=>`${pct(i.res.r.to)} / ${fmt(i.d.to,0)}%`, null, i=>i.res.linhas[2].st],
+    ["TP / mínima", i=>`${pct(i.res.r.tp)} / ${fmt(i.d.tp,0)}%`, null, i=>i.res.linhas[3].st],
+    ["Altura / gabarito", i=>`${fmt(i.res.r.altura,2)} / ${fmt(i.d.gab,1)} m`, null, i=>i.res.linhas[4].st],
+    ["Vagas / mínimo", i=>`${i.res.r.vagas} / ${i.res.r.vagasMin}`, null, i=>i.res.linhas[5].st],
+    ["Área construída", i=>m2(i.res.r.constrTotal,2)],
+  ];
+  return (
+    <section className="flex flex-col gap-5">
+      <div className="flex flex-col gap-1">
+        <span className="eyebrow">Lado a lado</span>
+        <h1 className="disp text-[22px] sm:text-[28px]">Comparar cenários</h1>
+        <span className="text-[12.5px]" style={{color:"var(--muted)"}}>Última versão de cada cenário. Em lilás, o maior número de UH e o maior VGV.</span>
+      </div>
+      <div className="panel overflow-x-auto">
+        <table className="text-[13px]" style={{minWidth:200+itens.length*200}}>
+          <thead>
+            <tr style={{background:"var(--raised)"}}>
+              <th className="eyebrow w-[200px]">Parâmetro</th>
+              {itens.map(i=>(
+                <th key={i.row.id_estudo}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0"><div className="disp text-[12px]">{i.row.terreno}</div><div className="font-medium" style={{color:"var(--lav)"}}>{i.row.cenario}</div><div className="text-[11.5px]" style={{color:"var(--muted)"}}>v{i.row.versao} · {quem(i.row.salvo_por)}</div></div>
+                    <button type="button" aria-label="Tirar da comparação" onClick={()=>setComparar(c=>c.filter(x=>x!==i.row.id_estudo))} style={{color:"var(--muted)"}}><Icon name="x" size={14}/></button>
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {linhas.map(([nome, val, num, stf])=>{
+              const top = num ? melhor(num) : null;
+              return (
+                <tr key={nome}>
+                  <td style={{color:"var(--muted)"}}>{nome}</td>
+                  {itens.map(i=>{
+                    const destaque = num && num(i)===top && top>0;
+                    return (
+                      <td key={i.row.id_estudo} className="mono" style={destaque?{color:"var(--lav)"}:null}>
+                        <div className="flex flex-wrap items-center gap-2">{val(i)}{stf && stf(i).t==="bad" && <Status st={stf(i)}/>}</div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+            <tr>
+              <td style={{color:"var(--muted)"}}>Situação</td>
+              {itens.map(i=><td key={i.row.id_estudo}>{i.res.falhas.length ? <Status st={{t:"bad",l:"Não atende"}}/> : <Status st={{t:"ok",l:"Atende"}}/>}</td>)}
+            </tr>
+            <tr>
+              <td></td>
+              {itens.map(i=><td key={i.row.id_estudo}><Btn icon="folder" onClick={()=>onAbrir(i.row)}>Abrir no estudo</Btn></td>)}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+/* ---------- Abertura (carregando ou sem acesso) ---------- */
+function Abertura({erro, onTentar}){
+  return (
+    <div className="wrap flex items-center justify-center" style={{paddingBlock:"64px"}}>
+      <div className="w-full max-w-[460px] flex flex-col gap-8">
+        <Logo h={30}/>
+        <div className="tagline eyebrow" aria-hidden="true">
+          <span>Revolucionando</span><span>negociação</span><span>metro</span><span>a</span><span>metro.</span>
+        </div>
+        <div className="regua" style={{width: erro ? "30%" : "78%", transition:"width 1.2s"}}/>
+        <h1 className="disp text-[20px] leading-snug">Um novo <span className="hl">capítulo começa</span> com planejamento e segurança.</h1>
+        {erro
+          ? <>
+              <div className="flex gap-2 p-3 rounded-lg text-[13px]" style={{border:"1px solid var(--bad)",color:"var(--bad)"}}><Icon name="alert" size={15} className="mt-0.5 shrink-0"/>{erro}</div>
+              <div><Btn icon="reset" primary onClick={onTentar}>Tentar de novo</Btn></div>
+            </>
+          : <p className="text-[13.5px]" style={{color:"var(--muted)"}}>Carregando os estudos da planilha…</p>}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Aplicação ---------- */
+function App(){
+  const [user, setUser] = useState(null);
+  const [erroInicio, setErroInicio] = useState("");
+  const [view, setView] = useState(NA_PLANILHA ? "salvos" : "estudo");
+  const [s, setS] = useState(NA_PLANILHA ? VAZIO : {...INICIAL, cenario:"Cenário A"});
+  const [meta, setMeta] = useState(null);          // {id, versao, salvo_por, salvo_em}
+  const [salvoSnap, setSalvoSnap] = useState(null);
+  const [rows, setRows] = useState([]);
+  const [carregando, setCarregando] = useState(false);
+  const [erro, setErro] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const [comparar, setComparar] = useState([]);
+  const [toast, setToast] = useState(null);
+
+  const grupos = useMemo(()=>agrupar(rows),[rows]);
+  const totalVersoes = meta ? (grupos.find(g=>g.ultima.id_estudo===meta.id)?.versoes.length || meta.versao) : 0;
+  const sujo = salvoSnap !== JSON.stringify(s);
+  const avisar = (msg, tom="ok") => { setToast({msg,tom}); clearTimeout(window.__t); window.__t = setTimeout(()=>setToast(null), 4200); };
+
+  const recarregar = async ()=>{
+    setCarregando(true); setErro("");
+    try{ setRows(await Store.listar()); }
+    catch(e){ setErro(e.message); }
+    finally{ setCarregando(false); }
+  };
+  const iniciar = async ()=>{
+    setErroInicio("");
+    try{ const d = await Store.iniciar(); setRows(d.rows||[]); setUser({email:d.email||"", local:!NA_PLANILHA}); }
+    catch(e){ setErroInicio(e.message); }
+  };
+  React.useEffect(()=>{ iniciar(); },[]);
+
+  const salvar = async ()=>{
+    if(!s.nome?.trim()){ avisar("Dê um nome ao terreno antes de salvar.","bad"); document.getElementById("nome-top")?.focus(); return; }
+    setSalvando(true);
+    try{
+      const id = meta?.id || novoId();
+      const row = await Store.salvar(montarLinha(s, {id}, null, user.email));   // a versão é numerada na planilha, com trava
+      setRows(prev=>[...prev, row]);
+      Store.listar().then(setRows).catch(()=>{});            // traz também o que outros sócios salvaram
+      const versao = row.versao;
+      setMeta({id, versao, salvo_por:row.salvo_por, salvo_em:row.salvo_em});
+      setSalvoSnap(JSON.stringify(s));
+      avisar(`Versão ${versao} de “${row.cenario}” salva.`);
+    }catch(e){ avisar(e.message,"bad"); }
+    finally{ setSalvando(false); }
+  };
+  const abrir = (row)=>{
+    const d = lerDados(row);
+    if(!d){ avisar("Não foi possível ler os dados desta versão.","bad"); return; }
+    setS(d); setMeta({id:row.id_estudo, versao:+row.versao, salvo_por:row.salvo_por, salvo_em:row.salvo_em});
+    setSalvoSnap(JSON.stringify(d)); setView("estudo"); window.scrollTo({top:0});
+  };
+  const novo = ()=>{ setS(VAZIO); setMeta(null); setSalvoSnap(null); avisar("Novo estudo em branco."); };
+  const duplicar = ()=>{ setS(p=>({...p, cenario:(p.cenario||"Cenário")+" (cópia)"})); setMeta(null); setSalvoSnap(null); avisar("Cenário duplicado. Salve para criar o novo cenário."); };
+
+  if(!user) return <Abertura erro={erroInicio} onTentar={iniciar}/>;
+
+  const Tab = ({id,icon,children,badge}) => (
+    <button type="button" onClick={()=>setView(id)} aria-current={view===id?"page":undefined}
+      className="inline-flex items-center gap-2 px-3 py-2 text-[13px] rounded-lg"
+      style={view===id ? {background:"var(--sunk)",color:"var(--ink)",border:"1px solid var(--line)"} : {color:"var(--muted)",border:"1px solid transparent"}}>
+      <Icon name={icon} size={15}/>{children}{badge ? <span className="mono text-[11px] px-1.5 rounded-full" style={{background:"var(--accent)",color:"var(--claro)"}}>{badge}</span> : null}
+    </button>
+  );
+
+  return (
+    <div className="wrap flex flex-col gap-7">
+      <header className="flex items-center justify-between gap-4 flex-wrap pt-5 pb-4" style={{borderBottom:"1px solid var(--line)"}}>
+        <div className="flex items-center gap-4 flex-wrap">
+          <Logo h={20}/>
+          <nav className="flex items-center gap-1 flex-wrap" aria-label="Seções">
+            <Tab id="estudo" icon="building">Estudo</Tab>
+            <Tab id="salvos" icon="folder">Terrenos salvos</Tab>
+            <Tab id="comparar" icon="columns" badge={comparar.length||null}>Comparar</Tab>
+          </nav>
+        </div>
+        <div className="flex items-center gap-2 text-[12.5px]">
+          {user.local
+            ? <span className="px-2.5 py-1 rounded-full" style={{border:"1px solid var(--warn)",color:"var(--warn)"}} title="Os estudos ficam só neste navegador até a planilha ser configurada">Modo local · sem planilha</span>
+            : <span className="inline-flex items-center gap-1.5" style={{color:"var(--muted)"}}><Icon name="cloud" size={14} style={{color:"var(--ok)"}}/>{user.email || "Conectado à planilha"}</span>}
+        </div>
+      </header>
+
+      {view==="estudo" && <Editor s={s} setS={setS} meta={meta} sujo={sujo} salvando={salvando} onSalvar={salvar} onNovo={novo} onDuplicar={duplicar} totalVersoes={totalVersoes}/>}
+      {view==="salvos" && <Salvos grupos={grupos} carregando={carregando} erro={erro} onAbrir={abrir} onRecarregar={recarregar} comparar={comparar} setComparar={setComparar}/>}
+      {view==="comparar" && <Comparar grupos={grupos} comparar={comparar} setComparar={setComparar} onAbrir={abrir} irParaSalvos={()=>setView("salvos")}/>}
+
+      <footer className="flex flex-wrap items-center justify-between gap-3 pt-6" style={{borderTop:"1px solid var(--line)"}}>
+        <span style={{color:"var(--muted)"}}><Logo h={12}/></span>
+        <span className="eyebrow">Um novo capítulo começa com <span className="hl">planejamento e segurança.</span></span>
+      </footer>
+
+      {toast && (
+        <div role="status" className="fixed z-20 flex items-center gap-2 px-4 py-3 rounded-lg text-[13px]"
+          style={{right:"calc(16px + env(safe-area-inset-right,0px))",bottom:"calc(16px + env(safe-area-inset-bottom,0px))",background:"var(--raised)",border:`1px solid ${toast.tom==="bad"?"var(--bad)":"var(--accent)"}`,color:toast.tom==="bad"?"var(--bad)":"var(--ink)"}}>
+          <Icon name={toast.tom==="bad"?"alert":"check"} size={15}/>{toast.msg}
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
